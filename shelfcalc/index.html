@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Box Rack Calculator</title>
+<meta name="description" content="Cut list, lumber and runner spacing calculator for a ladder-frame box storage rack.">
+<style>
+:root {
+  --bg: #fbfaf7;
+  --panel: #ffffff;
+  --ink: #23201b;
+  --muted: #6f685d;
+  --line: #e2ddd3;
+  --accent: #8a5a2b;
+  --accent-ink: #ffffff;
+  --upright: #b98a5a;
+  --runner: #8f6338;
+  --tie: #a87a4b;
+  --box: #e9dcc3;
+  --box-edge: #b9a582;
+  --warn-bg: #fff4e0;
+  --warn-ink: #7a4a00;
+  --err-bg: #fde8e6;
+  --err-ink: #8c1d12;
+  --waste: #ebe7df;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1a1916; --panel: #23211d; --ink: #ece7de; --muted: #a39c90; --line: #3a372f;
+    --accent: #d39a5f; --accent-ink: #1a1916; --upright: #9c7246; --runner: #c08a55; --tie: #8a6339;
+    --box: #4a4334; --box-edge: #786a4f; --warn-bg: #3b2e14; --warn-ink: #f4c879;
+    --err-bg: #3d1a16; --err-ink: #f3a197; --waste: #2e2c27;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1a1916; --panel: #23211d; --ink: #ece7de; --muted: #a39c90; --line: #3a372f;
+  --accent: #d39a5f; --accent-ink: #1a1916; --upright: #9c7246; --runner: #c08a55; --tie: #8a6339;
+  --box: #4a4334; --box-edge: #786a4f; --warn-bg: #3b2e14; --warn-ink: #f4c879;
+  --err-bg: #3d1a16; --err-ink: #f3a197; --waste: #2e2c27;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding: 16px;
+}
+.wrap { max-width: 1100px; margin: 0 auto; }
+h1 { font-size: 1.35rem; margin: 0 0 4px; }
+.sub { color: var(--muted); margin: 0 0 16px; }
+.grid { display: grid; grid-template-columns: minmax(280px, 340px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+.card + .card { margin-top: 16px; }
+fieldset { border: 0; padding: 0; margin: 0 0 14px; }
+legend { font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 6px; padding: 0; }
+.row { display: grid; grid-template-columns: 1fr 110px; gap: 8px; align-items: center; margin-bottom: 6px; }
+.row label { font-size: .92rem; }
+.row small { display: block; color: var(--muted); font-size: .78rem; line-height: 1.25; }
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px; }
+.trio label { font-size: .78rem; color: var(--muted); display: block; }
+input[type=text], input[type=number], select {
+  width: 100%; padding: 6px 8px; font: inherit; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px;
+}
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+input.bad { border-color: var(--err-ink); }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .92rem; }
+.checks label { display: inline-flex; gap: 5px; align-items: center; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.stat { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.stat b { display: block; font-size: 1.2rem; }
+.stat span { color: var(--muted); font-size: .8rem; }
+h2 { font-size: 1rem; margin: 0 0 10px; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.scroll { overflow-x: auto; }
+.msg { padding: 8px 10px; border-radius: 8px; margin-bottom: 8px; font-size: .9rem; }
+.msg.warn { background: var(--warn-bg); color: var(--warn-ink); }
+.msg.err { background: var(--err-bg); color: var(--err-ink); }
+.board { margin: 6px 0 10px; }
+.board .lbl { font-size: .85rem; margin-bottom: 3px; }
+.bar { display: flex; height: 26px; border-radius: 4px; overflow: hidden; background: var(--waste); border: 1px solid var(--line); }
+.seg { background: var(--upright); color: #fff; font-size: .72rem; display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; border-right: 2px solid var(--panel); }
+.seg.r { background: var(--runner); }
+.seg.t { background: var(--tie); }
+svg { width: 100%; height: auto; display: block; }
+.draw { max-width: 520px; margin: 0 auto; }
+.muted { color: var(--muted); }
+button {
+  font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--accent);
+  background: var(--accent); color: var(--accent-ink); cursor: pointer;
+}
+button.ghost { background: transparent; color: var(--accent); }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+details summary { cursor: pointer; font-weight: 600; }
+.foot { color: var(--muted); font-size: .8rem; margin-top: 12px; }
+.psrow { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: .86rem; margin-bottom: 6px; }
+.psrow b { min-width: 34px; }
+.psrow label { display: inline-flex; gap: 3px; align-items: center; }
+.psrow.custom b { color: var(--accent); }
+button.linkbtn { background: none; border: 0; color: var(--accent); padding: 0; font-size: .8rem; text-decoration: underline; }
+.viewhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.toggle { display: inline-flex; border: 1px solid var(--accent); border-radius: 6px; overflow: hidden; }
+.toggle button { border: 0; border-radius: 0; padding: 3px 12px; font-size: .85rem; background: transparent; color: var(--accent); }
+.toggle button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.print-only { display: none; }
+[hidden] { display: none !important; }
+.spec { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px 16px; font-size: 9.5pt; margin: 6px 0 10px; }
+.spec div { border-bottom: 1px solid var(--line); padding: 2px 0; display: flex; justify-content: space-between; gap: 8px; }
+.spec span { color: var(--muted); }
+
+@media print {
+  :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+    --bg: #fff; --panel: #fff; --ink: #000; --muted: #555; --line: #ccc;
+    --upright: #b98a5a; --runner: #8f6338; --tie: #a87a4b; --box: #f1e8d6; --box-edge: #9c8964;
+    --warn-bg: #fff; --warn-ink: #000; --err-bg: #fff; --err-ink: #000; --waste: #eee;
+  }
+  @page { margin: 12mm; }
+  body { padding: 0; font-size: 10pt; background: #fff; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .wrap > h1, .sub, form, .btns, .foot, .stats-card, .toggle { display: none !important; }
+  .grid { display: block; }
+  .print-only { display: block; }
+  .card { border: 0; padding: 0; margin: 0 0 12px !important; break-inside: avoid; }
+  .card.cuts-card, .card.diag-card { break-inside: auto; }
+  .board { break-inside: avoid; }
+  .msg { border: 1px solid #000; }
+  h2, h3 { break-after: avoid; page-break-after: avoid; }
+  h2 { font-size: 11pt; border-bottom: 2px solid #000; padding-bottom: 2px; margin-bottom: 6px; }
+  .draw-card { float: right; width: 38%; margin-left: 16px !important; }
+  .draw-card h2 { font-size: 9pt; }
+  th, td { padding: 3px 6px; }
+  details > summary { list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+  .heights-note { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Box rack cut calculator</h1>
+  <p class="sub">Ladder-frame rack. Boxes slide in on pairs of flat runners screwed between the front and back uprights. Measurements are in inches, and you can type decimals or fractions (6.755, 6 1/4, 6-1/4).</p>
+
+  <div class="grid">
+    <!-- INPUTS -->
+    <form class="card" id="f" autocomplete="off">
+      <fieldset>
+        <legend>Box</legend>
+        <div class="trio">
+          <div><label for="boxW">Width at top</label><input type="text" id="boxW" value="12 1/2"></div>
+          <div><label for="boxD">Depth</label><input type="text" id="boxD" value="16 1/2"></div>
+          <div><label for="boxH">Height</label><input type="text" id="boxH" value="6 1/4"></div>
+        </div>
+        <div class="muted" style="font-size:.78rem;margin-bottom:8px">Top width is the widest point, usually the lid or rim. Measure height with the lid on and latched.</div>
+        <div class="row"><label for="boxWb">Width at bottom<small>if the box tapers; blank = same as top</small></label><input type="text" id="boxWb" value="" placeholder="same"></div>
+        <div class="row"><label for="support">Box is held by</label>
+          <select id="support"><option value="bottom" selected>its bottom</option><option value="rim">its rim (hangs)</option></select></div>
+        <div id="rimFields" hidden>
+          <div class="row"><label for="rimDrop">Lid top to underside of rim<small>the part that sits above the runner</small></label><input type="text" id="rimDrop" value="1 1/4"></div>
+          <div class="row"><label for="bodyW">Body width just under the rim<small>must pass between the runners</small></label><input type="text" id="bodyW" value="" placeholder="e.g. 11"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Layout</legend>
+        <div class="row"><label for="rows">Rows (boxes high)</label><input type="number" id="rows" value="10" min="1" max="40"></div>
+        <div class="row"><label for="cols">Columns (boxes wide)</label><input type="number" id="cols" value="4" min="1" max="20"></div>
+        <div class="row"><label for="maxH">Height limit<small>optional, e.g. ceiling</small></label><input type="text" id="maxH" value="" placeholder="none"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Fit &amp; clearance</legend>
+        <div class="row"><label for="clearTop">Headroom above each box<small>for bulging lids, sag, lift</small></label><input type="text" id="clearTop" value="1/2"></div>
+        <div class="row"><label for="spacer">Measured spacer<small>overrides box height + headroom</small></label><input type="text" id="spacer" value="" placeholder="auto"></div>
+        <div class="row"><label for="clearSide">Side play in each bay<small>total, split left/right</small></label><input type="text" id="clearSide" value="1/2"></div>
+        <div class="row"><label for="ovF">Box overhang, front<small>past the front uprights (negative = recessed)</small></label><input type="text" id="ovF" value="0"></div>
+        <div class="row"><label for="ovB">Box overhang, back</label><input type="text" id="ovB" value="0"></div>
+        <div class="row"><label for="build">Set runners<small>top down puts the spacer above each runner, so pocket screws pull it tight against the spacer</small></label>
+          <select id="build"><option value="top" selected>top down</option><option value="bottom">bottom up</option></select></div>
+        <div class="row"><label for="base" id="baseLbl">Bottom runner underside<small>height off the floor</small></label><input type="text" id="base" value="2"></div>
+        <div class="row"><label for="roundTo">Round upright length up to</label>
+          <select id="roundTo"><option value="0">exact</option><option value="0.125">1/8"</option><option value="0.25">1/4"</option><option value="0.5" selected>1/2"</option><option value="1">1"</option></select></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Lumber</legend>
+        <div class="row"><label for="upS">Uprights</label><select id="upS"></select></div>
+        <div class="row"><label for="surface">Boxes sit on</label>
+          <select id="surface"><option value="runners" selected>two runners</option><option value="ply">a plywood shelf</option></select></div>
+        <div class="row" id="ruRow"><label for="ruS">Runners<small>laid flat, so the board width is the ledge each box rests on</small></label><select id="ruS"></select></div>
+        <div class="row" id="plyRow" hidden><label for="plyT">Plywood<small>one panel per box, spanning upright to upright and pocket-screwed at the corners</small></label>
+          <select id="plyT"><option value="0.46875">15/32″ (½″)</option><option value="0.59375">19/32″ (⅝″)</option><option value="0.71875" selected>23/32″ (¾″)</option></select></div>
+        <div class="row"><label for="tiS">Ties &amp; diagonal</label><select id="tiS"></select></div>
+        <div class="checks" style="margin:4px 0 8px">
+          <label><input type="checkbox" id="tFront" checked> Front top tie</label>
+          <label><input type="checkbox" id="tBackTop" checked> Back top tie</label>
+          <label><input type="checkbox" id="tBackBot" checked> Back bottom tie</label>
+          <label><input type="checkbox" id="tDiag" checked> Back diagonal</label>
+        </div>
+        <div class="row"><label for="species">Wood (for weight)</label>
+          <select id="species">
+            <option value="28" selected>SPF / spruce, kiln-dried</option>
+            <option value="23">Western red cedar</option>
+            <option value="33">Douglas fir</option>
+            <option value="36">Southern yellow pine</option>
+            <option value="29">Poplar</option>
+            <option value="45">Red oak</option>
+          </select></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Stock &amp; cutting</legend>
+        <div class="muted" style="font-size:.78rem;margin-bottom:4px">Board lengths you can buy</div>
+        <div class="checks" id="stockBox" style="margin-bottom:6px"></div>
+        <details id="perSize" style="margin:0 0 10px">
+          <summary style="font-weight:400;font-size:.88rem">Different lengths for some sizes <span id="perSizeTag" class="muted"></span></summary>
+          <div class="muted" style="font-size:.78rem;margin:4px 0 6px">Lengths in feet, for sizes your store doesn't carry in every length. Sizes you don't change use the lengths above.</div>
+          <div id="perSizeRows"></div>
+        </details>
+        <div class="row"><label for="kerf">Saw kerf</label><input type="text" id="kerf" value="1/8"></div>
+        <div class="row"><label for="trim">End trim per board<small>to square up factory ends</small></label><input type="text" id="trim" value="0"></div>
+      </fieldset>
+
+      <div class="btns">
+        <button type="button" id="printBtn">Print cut sheet</button>
+        <button type="button" class="ghost" id="copyLink">Copy link to this build</button>
+        <button type="button" class="ghost" id="reset">Reset</button>
+      </div>
+    </form>
+
+    <!-- RESULTS -->
+    <div class="results">
+      <div class="print-only" id="printHead"></div>
+      <div id="msgs"></div>
+
+      <div class="card stats-card">
+        <div class="stats" id="stats"></div>
+      </div>
+
+      <div class="card draw-card">
+        <div class="viewhead">
+          <h2 style="margin:0"><span id="viewTitle">Front view</span> <span class="muted" style="font-weight:400">(to scale)</span></h2>
+          <div class="toggle" role="group" aria-label="View">
+            <button type="button" data-view="front" aria-pressed="true">Front</button><button type="button" data-view="back" aria-pressed="false">Back</button>
+          </div>
+        </div>
+        <div class="draw" id="draw"></div>
+      </div>
+
+      <div class="card">
+        <h2>Shopping list</h2>
+        <div class="scroll"><table id="shop"></table></div>
+        <p class="muted" id="hw" style="font-size:.85rem;margin:8px 0 0"></p>
+      </div>
+
+      <div class="card cuts-card">
+        <h2>Cut list</h2>
+        <div class="scroll"><table id="cuts"></table></div>
+      </div>
+
+      <div class="card diag-card">
+        <h2>Cutting diagrams</h2>
+        <div id="diagrams"></div>
+      </div>
+
+      <div class="card heights-card">
+        <details>
+          <summary>Runner heights (to check with a tape)</summary>
+          <p class="muted heights-note" style="font-size:.85rem">Heights are from the floor, and the "top end" column measures down from the upright's top end. Use the spacer between each runner and its neighbor to set the next one (top down: spacer above the new runner; bottom up: below). Check against these every 3–4 rows. If you're more than about 1/8" off, correct on the next runner.</p>
+          <div class="scroll"><table id="heights"></table></div>
+        </details>
+      </div>
+
+      <p class="foot">Lumber sizes use standard actual dimensions (1× = 3/4" thick, 2× = 1 1/2", 3" nominal = 2 1/2" wide). The diagonal is an estimate, so mark it in place before cutting. Weight assumes dry lumber, and wet lumber can be 20–30% heavier.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- lumber ----------
+  var LUMBER = {
+    "1x2": [0.75, 1.5], "1x3": [0.75, 2.5], "1x4": [0.75, 3.5], "1x6": [0.75, 5.5],
+    "2x2": [1.5, 1.5], "2x3": [1.5, 2.5], "2x4": [1.5, 3.5]
+  };
+  var STOCK = [72, 96, 120, 144, 168, 192];
+  var STOCK_DEFAULT = [96, 120, 144];
+
+  function fillSel(id, def) {
+    var s = document.getElementById(id);
+    Object.keys(LUMBER).forEach(function (k) {
+      var o = document.createElement("option");
+      o.value = k; o.textContent = k.replace("x", "×");
+      if (k === def) o.selected = true;
+      s.appendChild(o);
+    });
+  }
+  fillSel("upS", "2x3"); fillSel("ruS", "1x3"); fillSel("tiS", "1x4");
+
+  var stockBox = document.getElementById("stockBox");
+  STOCK.forEach(function (L) {
+    var lab = document.createElement("label");
+    lab.innerHTML = '<input type="checkbox" data-stock="' + L + '"' + (STOCK_DEFAULT.indexOf(L) >= 0 ? " checked" : "") + "> " + (L / 12) + " ft";
+    stockBox.appendChild(lab);
+  });
+
+  // ---------- parsing / formatting ----------
+  var UNI = { "½": " 1/2", "¼": " 1/4", "¾": " 3/4", "⅛": " 1/8", "⅜": " 3/8", "⅝": " 5/8", "⅞": " 7/8" };
+  function parseLen(raw) {
+    var s = String(raw == null ? "" : raw).trim();
+    if (s === "") return null;
+    s = s.replace(/[½¼¾⅛⅜⅝⅞]/g, function (c) { return UNI[c]; })
+         .replace(/(″|"|”|inches|inch|in\b)/gi, "").replace(/⁄/g, "/").trim();
+    var neg = false;
+    if (s[0] === "-") { neg = true; s = s.slice(1).trim(); }
+    s = s.replace(/(\d)\s*-\s*(\d)/, "$1 $2");
+    var m = s.match(/^(\d*\.?\d+)?\s*(?:(\d+)\s*\/\s*(\d+))?$/);
+    if (!m || (!m[1] && !m[2])) return NaN;
+    var v = m[1] ? parseFloat(m[1]) : 0;
+    if (m[2]) { var d = parseInt(m[3], 10); if (!d) return NaN; v += parseInt(m[2], 10) / d; }
+    return neg ? -v : v;
+  }
+  function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+  var UFR = { "1/2": "½", "1/4": "¼", "3/4": "¾", "1/8": "⅛", "3/8": "⅜", "5/8": "⅝", "7/8": "⅞" };
+  function fmt(x) {
+    if (!isFinite(x)) return "–";
+    var sign = x < 0 ? "−" : ""; x = Math.abs(x);
+    var w = Math.floor(x), n = Math.round((x - w) * 16), d = 16;
+    if (n === 16) { w++; n = 0; }
+    var fr = "";
+    if (n) { var g = gcd(n, d); n /= g; d /= g; var k = n + "/" + d; fr = UFR[k] || (" " + k); }
+    var out = (w ? String(w) : (fr ? "" : "0")) + (fr ? (w && fr[0] === " " ? fr : fr.trim()) : "");
+    var approx = Math.abs(x - (Math.floor(x) + Math.round((x - Math.floor(x)) * 16) / 16)) > 0.004 ? "≈" : "";
+    return approx + sign + out + "″";
+  }
+  function fmtFt(x) {
+    var ft = Math.floor(x / 12), inch = x - ft * 12;
+    if (inch > 11.97) { ft++; inch = 0; }
+    var f = fmt(inch), ap = f[0] === "≈" ? "≈" : "";
+    return ap + ft + "′ " + f.replace("≈", "");
+  }
+  function dec(x, p) { return (Math.round(x * Math.pow(10, p || 3)) / Math.pow(10, p || 3)).toString() + "″"; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  // ---------- state ----------
+  var form = document.getElementById("f");
+  var FIELDS = ["boxW", "boxD", "boxH", "boxWb", "support", "rimDrop", "bodyW", "rows", "cols", "maxH", "clearTop", "spacer", "clearSide", "ovF", "ovB", "build", "base", "roundTo",
+    "upS", "surface", "ruS", "plyT", "tiS", "tFront", "tBackTop", "tBackBot", "tDiag", "species", "kerf", "trim"];
+  var DEFAULTS = {};
+  function readField(id) { var el = document.getElementById(id); return el.type === "checkbox" ? (el.checked ? "1" : "0") : el.value; }
+  function writeField(id, v) { var el = document.getElementById(id); if (el.type === "checkbox") el.checked = v === "1"; else el.value = v; }
+  function stockSel() { return Array.prototype.map.call(stockBox.querySelectorAll("input:checked"), function (i) { return +i.dataset.stock; }); }
+  FIELDS.forEach(function (id) { DEFAULTS[id] = readField(id); });
+  DEFAULTS.stock = STOCK_DEFAULT.join(",");
+
+  // per-size length overrides: { "2x3": [96, 120], ... }; sizes not listed use the global lengths
+  var override = {};
+  function stocksFor(size) { return override[size] || stockSel(); }
+  function sizesInUse() {
+    var s = [document.getElementById("upS").value];
+    if (document.getElementById("surface").value !== "ply") s.push(document.getElementById("ruS").value);
+    if (["tFront", "tBackTop", "tBackBot", "tDiag"].some(function (id) { return readField(id) === "1"; })) s.push(document.getElementById("tiS").value);
+    return s.filter(function (v, i) { return s.indexOf(v) === i; });
+  }
+  var psRows = document.getElementById("perSizeRows");
+  function renderPerSize() {
+    var html = "";
+    sizesInUse().forEach(function (size) {
+      var cur = stocksFor(size), custom = !!override[size];
+      html += '<div class="psrow' + (custom ? " custom" : "") + '" data-size="' + size + '"><b>' + size.replace("x", "×") + "</b>";
+      STOCK.forEach(function (L) {
+        html += '<label><input type="checkbox" data-len="' + L + '"' + (cur.indexOf(L) >= 0 ? " checked" : "") + "> " + (L / 12) + "</label>";
+      });
+      html += (custom ? ' <button type="button" class="linkbtn" data-reset="' + size + '">use default</button>' : "") + "</div>";
+    });
+    psRows.innerHTML = html;
+    var n = Object.keys(override).length;
+    document.getElementById("perSizeTag").textContent = n ? "(" + n + " custom)" : "";
+  }
+  psRows.addEventListener("change", function (e) {
+    var row = e.target.closest(".psrow"); if (!row) return;
+    var sel = Array.prototype.map.call(row.querySelectorAll("input:checked"), function (i) { return +i.dataset.len; });
+    if (sel.join(",") === stockSel().join(",")) delete override[row.dataset.size];
+    else override[row.dataset.size] = sel;
+  });
+  psRows.addEventListener("click", function (e) {
+    var k = e.target.dataset && e.target.dataset.reset;
+    if (k) { delete override[k]; render(); }
+  });
+
+  function loadHash() {
+    var h = location.hash.replace(/^#/, "");
+    if (!h) return;
+    h.split("&").forEach(function (kv) {
+      var p = kv.split("="), k = decodeURIComponent(p[0]), v = decodeURIComponent(p[1] || "");
+      if (k === "stock") {
+        var set = v.split(",").map(Number);
+        stockBox.querySelectorAll("input").forEach(function (i) { i.checked = set.indexOf(+i.dataset.stock) >= 0; });
+      } else if (k === "stk") {
+        override = {};
+        v.split(";").forEach(function (e) {
+          var q = e.split(":"); if (!LUMBER[q[0]]) return;
+          override[q[0]] = (q[1] || "").split(".").filter(Boolean).map(Number).filter(function (L) { return STOCK.indexOf(L) >= 0; });
+        });
+      } else if (FIELDS.indexOf(k) >= 0) writeField(k, v);
+    });
+  }
+  function hashString() {
+    var parts = [];
+    FIELDS.forEach(function (id) { var v = readField(id); if (v !== DEFAULTS[id]) parts.push(id + "=" + encodeURIComponent(v)); });
+    var st = stockSel().join(","); if (st !== DEFAULTS.stock) parts.push("stock=" + st);
+    var ov = Object.keys(override).map(function (k) { return k + ":" + override[k].join("."); });
+    if (ov.length) parts.push("stk=" + ov.join(";"));
+    return parts.join("&");
+  }
+  function saveHash() {
+    var h = hashString();
+    try { history.replaceState(null, "", h ? "#" + h : location.pathname + location.search); } catch (e) {}
+  }
+
+  // ---------- packing ----------
+  // First-fit decreasing. pieces: [{len, label, cls}]
+  function pack(pieces, L, kerf, trim) {
+    var usable = L - 2 * trim;
+    var sorted = pieces.slice().sort(function (a, b) { return b.len - a.len; });
+    var boards = [];
+    for (var i = 0; i < sorted.length; i++) {
+      var p = sorted[i], placed = false;
+      for (var j = 0; j < boards.length; j++) {
+        var b = boards[j];
+        if (b.used + kerf + p.len <= usable + 1e-9) { b.used += kerf + p.len; b.cuts.push(p); placed = true; break; }
+      }
+      if (!placed) boards.push({ used: p.len, cuts: [p] });
+    }
+    return boards;
+  }
+  function bestPack(pieces, stocks, kerf, trim) {
+    var maxLen = Math.max.apply(null, pieces.map(function (p) { return p.len; }));
+    var best = null;
+    stocks.forEach(function (L) {
+      if (maxLen > L - 2 * trim + 1e-9) return;
+      var boards = pack(pieces, L, kerf, trim);
+      // then buy each board as the shortest enabled stock that still holds its cuts
+      var asc = stocks.slice().sort(function (a, b) { return a - b; });
+      var total = 0;
+      boards.forEach(function (b) {
+        b.L = L;
+        for (var k = 0; k < asc.length; k++) if (b.used <= asc[k] - 2 * trim + 1e-9) { b.L = asc[k]; break; }
+        total += b.L;
+      });
+      if (!best || total < best.total - 1e-9 || (Math.abs(total - best.total) < 1e-9 && boards.length < best.boards.length))
+        best = { L: L, boards: boards, total: total };
+    });
+    return best;
+  }
+
+  // Grid of pw × pd panels on a SW × SL sheet, in both orientations, with the leftover end strip
+  // filled with rotated panels. Returns the layout that fits more.
+  function sheetLayout(pw, pd, kerf, SW, SL) {
+    function fit(a, b) {
+      var rects = [], i, j;
+      var nx = Math.floor((SW + kerf) / (a + kerf)), ny = Math.floor((SL + kerf) / (b + kerf));
+      for (i = 0; i < nx; i++) for (j = 0; j < ny; j++) rects.push({ x: i * (a + kerf), y: j * (b + kerf), w: a, h: b });
+      var y0 = ny * (b + kerf), rem = SL - y0;
+      var mx = Math.floor((SW + kerf) / (b + kerf)), my = rem > 0 ? Math.floor((rem + kerf) / (a + kerf)) : 0;
+      for (i = 0; i < mx; i++) for (j = 0; j < my; j++) rects.push({ x: i * (b + kerf), y: y0 + j * (a + kerf), w: b, h: a });
+      return rects;
+    }
+    var A = fit(pw, pd), B = fit(pd, pw);
+    return A.length >= B.length ? A : B;
+  }
+
+  // ---------- compute ----------
+  function compute() {
+    var errs = [], warns = [], bad = {};
+    function num(id, opts) {
+      opts = opts || {};
+      var v = parseLen(document.getElementById(id).value);
+      if (v === null) { if (opts.optional) return null; bad[id] = 1; return NaN; }
+      if (isNaN(v) || (opts.min != null && v < opts.min)) { bad[id] = 1; return NaN; }
+      return v;
+    }
+    var boxW = num("boxW", { min: 0.1 }), boxD = num("boxD", { min: 0.1 }), boxH = num("boxH", { min: 0.1 });
+    var boxWb = num("boxWb", { optional: true, min: 0.1 });
+    if (boxWb == null) boxWb = boxW;
+    var ply = document.getElementById("surface").value === "ply";
+    var hung = !ply && document.getElementById("support").value === "rim";
+    var rimDrop = 0, bodyW = boxW;
+    if (hung) {
+      rimDrop = num("rimDrop", { min: 0.1 });
+      bodyW = num("bodyW", { optional: true, min: 0.1 });
+      if (bodyW == null) { bad.bodyW = 1; bodyW = NaN; }
+    }
+    var rows = Math.floor(+document.getElementById("rows").value), cols = Math.floor(+document.getElementById("cols").value);
+    if (!(rows >= 1 && rows <= 40)) { bad.rows = 1; rows = NaN; }
+    if (!(cols >= 1 && cols <= 20)) { bad.cols = 1; cols = NaN; }
+    var maxH = num("maxH", { optional: true, min: 1 });
+    var clearTop = num("clearTop", { min: 0 }), clearSide = num("clearSide", { min: 0 });
+    var spacerIn = num("spacer", { optional: true, min: 0.1 });
+    var ovF = num("ovF"), ovB = num("ovB"), base = num("base", { min: 0 });
+    var kerf = num("kerf", { min: 0 }), trim = num("trim", { min: 0 });
+    var roundTo = +document.getElementById("roundTo").value;
+    var up = LUMBER[document.getElementById("upS").value], ru = LUMBER[document.getElementById("ruS").value], ti = LUMBER[document.getElementById("tiS").value];
+    var ties = { front: readField("tFront") === "1", backTop: readField("tBackTop") === "1", backBot: readField("tBackBot") === "1", diag: readField("tDiag") === "1" };
+    var density = +document.getElementById("species").value;
+
+    FIELDS.forEach(function (id) { var el = document.getElementById(id); el.classList.toggle("bad", !!bad[id]); });
+    if (Object.keys(bad).length) return { errs: ["Check the highlighted fields."] };
+
+    // geometry
+    var upThin = up[0], upWide = up[1];     // thin face across the rack width, wide face front-to-back
+    var plyT = +document.getElementById("plyT").value;
+    var ruT = ply ? plyT : ru[0], ruW = ru[1];   // runner laid flat, or the plywood panel's thickness
+    var tiT = ti[0], tiW = ti[1];
+    // Bottom mode: uprights clear the top width; the (maybe narrower) bottom rests on the runner ledges.
+    // Rim mode: the body drops between the runners and the rim/lid lip sits on them.
+    var bay, gap, bearing, shift;
+    if (!hung) {
+      bay = boxW + clearSide;
+      gap = bay - 2 * ruW;
+      shift = (bay - boxW) / 2;                       // how far a box can slide sideways before its top hits an upright
+      bearing = ruW - (bay - boxWb) / 2 - shift;      // worst case, shoved to one side
+    } else {
+      bay = Math.max(boxW + clearSide, bodyW + clearSide + 2 * ruW);
+      gap = bay - 2 * ruW;
+      shift = Math.min((gap - bodyW) / 2, (bay - boxW) / 2);
+      bearing = (boxW - gap) / 2 - shift;
+    }
+    var width = (cols + 1) * upThin + cols * bay;
+    var runnerLen = boxD - ovF - ovB;
+    var above = hung ? rimDrop : boxH;                // box height above the runner top
+    var pitch, spacer;
+    if (spacerIn != null) { spacer = spacerIn; pitch = spacer + ruT; }
+    else {
+      pitch = hung ? Math.max(boxH + clearTop, rimDrop + ruT + clearTop) : boxH + clearTop + ruT;
+      spacer = pitch - ruT;
+    }
+    // actual headroom above each lid: to the next runner, and (rim mode) to the next box's bottom
+    var effTop = hung ? Math.min(spacer - rimDrop, pitch - boxH) : spacer - boxH;
+
+    var rowsData = [];
+    for (var i = 0; i < rows; i++) {
+      var u = base + i * pitch, tp = u + ruT;
+      rowsData.push({ n: i + 1, under: u, top: tp, boxTop: tp + above, boxBot: tp + above - boxH });
+    }
+    var topBoxTop = rowsData[rows - 1].boxTop;
+    var tieUnder = topBoxTop + effTop;
+    var rawUp = tieUnder + (ties.front || ties.backTop ? tiW : 0);
+    var upLen = roundTo ? Math.ceil(rawUp / roundTo - 1e-9) * roundTo : rawUp;
+    // Top-down: everything is referenced from the upright's top end, so rounding slack ends up at the floor.
+    var topDown = document.getElementById("build").value === "top";
+    var slack = upLen - rawUp;
+    if (topDown && slack > 0) {
+      rowsData.forEach(function (d) { d.under += slack; d.top += slack; d.boxTop += slack; d.boxBot += slack; });
+      topBoxTop += slack; tieUnder += slack;
+    }
+    var topBlock = upLen - rowsData[rows - 1].top;   // upright top end to the top runner's top face
+    var depth = runnerLen + (ties.front ? tiT : 0) + (ties.backTop || ties.backBot || ties.diag ? tiT : 0);
+
+    // checks
+    if (boxWb > boxW + 1e-9) warns.push("The bottom width is larger than the top width. Top width should be the widest point of the box.");
+    if (runnerLen < 2 * upWide + 1) errs.push("The runners are too short to span the front and back uprights. Reduce the overhang or use a deeper box.");
+    else if (runnerLen < boxD * 0.6) warns.push("The runners only support " + Math.round(runnerLen / boxD * 100) + "% of the box depth, so boxes may tip when pulled out.");
+    if (ply) {
+      // full panel under the box: no bearing or taper concerns
+    } else if (!hung) {
+      var needW = 1 + (bay - boxWb) / 2 + shift;      // runner width for 1" of worst-case bearing
+      var sugg = ["1x2", "1x3", "1x4", "1x6"].filter(function (k) { return LUMBER[k][1] >= needW - 1e-9; })[0];
+      var fix = sugg ? " A " + sugg.replace("x", "×") + " runner gives at least 1\"." : " Even a 1×6 is too narrow, so consider hanging the boxes by their rims.";
+      if (bearing <= 0) errs.push("The box bottom is too narrow for these runners: shoved to one side, it can drop between them." + fix);
+      else if (bearing < 0.75) warns.push("Shoved to one side, the box bottom only rests " + fmt(bearing) + " on a runner." + fix);
+    } else {
+      if (bearing <= 0) errs.push("The rim doesn't reach the runners: the lip (" + fmt((boxW - bodyW) / 2) + " per side) is smaller than the side play. Reduce the side play.");
+      else if (bearing < 0.375) warns.push("Shoved to one side, the rim only rests " + fmt(bearing) + " on a runner. Reduce the side play if you can.");
+      if (boxWb > gap) errs.push("The box bottom (" + fmt(boxWb) + ") is wider than the gap between runners (" + fmt(gap) + ").");
+      var narrowBay = Math.max(boxW + clearSide, bodyW + clearSide + 2 * LUMBER["1x2"][1]);
+      if (ruW > 1.5 && cols * (bay - narrowBay) >= 0.5)
+        warns.push("Tip: only the lip needs support in rim mode, so 1×2 runners would make the rack " + fmt(cols * (bay - narrowBay)) + " narrower.");
+      var lowBot = rowsData[0].boxBot;
+      if (lowBot < 0.5) warns.push("The lowest box's bottom sits " + fmt(lowBot) + " off the floor. Raise the bottom runner underside to about " + fmt(base + 0.5 - lowBot) + ".");
+    }
+    if (clearSide < 0.125) warns.push("Less than 1/8\" of side play, so boxes may bind between the uprights.");
+    if (effTop < 0.25) warns.push("Less than 1/4\" of headroom above each box (" + fmt(effTop) + "). Stuffed lids and sagging runners may make boxes drag.");
+    if (effTop < 0) errs.push("The spacer is shorter than the box, so boxes won't fit.");
+    if (ovF + ovB > 0 && Math.max(ovF, ovB) > boxD * 0.25) warns.push("A large overhang makes the box ends unsupported.");
+
+    var rowsFit = null;
+    if (maxH != null) {
+      var fixedTop = above + effTop + (ties.front || ties.backTop ? tiW : 0);
+      rowsFit = Math.floor((maxH - base - ruT - fixedTop) / pitch + 1e-9) + 1;
+      if (rowsFit < 1) rowsFit = 0;
+      if (upLen > maxH + 1e-9) errs.push("The uprights (" + fmt(upLen) + ") exceed the height limit (" + fmt(maxH) + "). At most " + rowsFit + " rows fit.");
+    }
+
+    // parts
+    var nUp = (cols + 1) * 2, nRu = ply ? rows * cols : rows * cols * 2;
+    var diagLen = Math.sqrt(width * width + upLen * upLen);
+    var parts = [
+      { key: "up", name: "Uprights", stock: document.getElementById("upS").value, qty: nUp, len: upLen, cls: "", note: (cols + 1) + " ladders × front + back" },
+      ply ? { key: "ply", name: "Shelf panels", stock: "ply", qty: nRu, len: runnerLen, w: bay, cls: "p", note: "width × depth; grain front to back" }
+          : { key: "ru", name: "Runners", stock: document.getElementById("ruS").value, qty: nRu, len: runnerLen, cls: "r", note: "2 per box, laid flat" }
+    ];
+    if (ties.front) parts.push({ key: "tf", name: "Front top tie", stock: document.getElementById("tiS").value, qty: 1, len: width, cls: "t", note: "underside at " + fmt(tieUnder) });
+    if (ties.backTop) parts.push({ key: "tb", name: "Back top tie", stock: document.getElementById("tiS").value, qty: 1, len: width, cls: "t", note: "" });
+    if (ties.backBot) parts.push({ key: "tl", name: "Back bottom tie", stock: document.getElementById("tiS").value, qty: 1, len: width, cls: "t", note: "at the floor" });
+    if (ties.diag) parts.push({ key: "dg", name: "Back diagonal", stock: document.getElementById("tiS").value, qty: 1, len: diagLen, cls: "t", note: "approx., mark in place" });
+
+    // group by stock size and pack
+    var groups = {};
+    parts.forEach(function (p) {
+      if (p.stock === "ply") return;
+      groups[p.stock] = groups[p.stock] || [];
+      for (var q = 0; q < p.qty; q++) groups[p.stock].push({ len: p.len, label: p.name, cls: p.cls });
+    });
+    var packs = {};
+    Object.keys(groups).forEach(function (s) {
+      var st = stocksFor(s);
+      if (!st.length) { errs.push("No board lengths are selected for " + s.replace("x", "×") + "."); packs[s] = null; return; }
+      var b = bestPack(groups[s], st, kerf, trim);
+      if (!b) {
+        var longest = Math.max.apply(null, groups[s].map(function (p) { return p.len; }));
+        errs.push("A " + s.replace("x", "×") + " piece is " + fmt(longest) + " long, which is longer than any " + s.replace("x", "×") +
+          " length selected (" + st.map(function (L) { return L / 12 + " ft"; }).join(", ") + "). Enable a longer board.");
+      }
+      packs[s] = b;
+    });
+
+    // weight
+    var vol = 0;
+    var plyVol = 0;
+    parts.forEach(function (p) {
+      if (p.stock === "ply") { plyVol += plyT * p.w * p.len * p.qty; return; }
+      var d = LUMBER[p.stock]; vol += d[0] * d[1] * p.len * p.qty;
+    });
+
+    // plywood: panels per 4×8 sheet
+    var plySheets = null;
+    if (ply) {
+      var lay = sheetLayout(bay, runnerLen, kerf, 48, 96);
+      if (!lay.length) errs.push("A shelf panel (" + fmt(bay) + " × " + fmt(runnerLen) + ") doesn't fit on a 4×8 sheet.");
+      else plySheets = { per: lay.length, n: Math.ceil(nRu / lay.length), layout: lay, last: nRu - (Math.ceil(nRu / lay.length) - 1) * lay.length, t: plyT };
+    }
+    var screws = nRu * 4 + (ties.front ? (cols + 1) * 2 : 0) + (ties.backTop ? (cols + 1) * 2 : 0) + (ties.backBot ? (cols + 1) * 2 : 0) + (ties.diag ? (cols + 1) * 2 : 0);
+    var weight = vol / 1728 * density + plyVol / 1728 * 34 + screws * 0.008;
+
+    return {
+      errs: errs, warns: warns, rows: rows, cols: cols, boxW: boxW, boxH: boxH, boxD: boxD, bay: bay, width: width, depth: depth,
+      runnerLen: runnerLen, spacer: spacer, spacerAuto: spacerIn == null, effTop: effTop, pitch: pitch, rowsData: rowsData,
+      topBoxTop: topBoxTop, tieUnder: tieUnder, upLen: upLen, rawUp: rawUp, upThin: upThin, ruT: ruT, ruW: ruW, tiW: tiW,
+      ties: ties, parts: parts, packs: packs, weight: weight, screws: screws, bearing: bearing, base: base, rowsFit: rowsFit,
+      maxH: maxH, clearSide: clearSide, kerf: kerf, topDown: topDown, topBlock: topBlock, slack: slack, ply: ply, plySheets: plySheets, hung: hung, boxWb: boxWb, rimDrop: rimDrop, bodyW: bodyW, gap: gap
+    };
+  }
+
+  // ---------- render ----------
+  function render() {
+    renderPerSize();
+    var isPly = document.getElementById("surface").value === "ply";
+    var N = isPly ? "shelf" : "runner", Ncap = isPly ? "Shelf" : "Runner", Ns = isPly ? "shelves" : "runners";
+    document.getElementById("ruRow").hidden = isPly;
+    document.getElementById("plyRow").hidden = !isPly;
+    var sup = document.getElementById("support");
+    sup.disabled = isPly;
+    document.getElementById("rimFields").hidden = isPly || sup.value !== "rim";
+    document.getElementById("baseLbl").innerHTML = document.getElementById("build").value === "top"
+      ? "Bottom " + N + " underside<small>minimum off the floor; rounding the uprights up adds to it</small>"
+      : "Bottom " + N + " underside<small>height off the floor</small>";
+    var r = compute();
+    var msgs = document.getElementById("msgs");
+    msgs.innerHTML = (r.errs || []).map(function (e) { return '<div class="msg err">' + esc(e) + "</div>"; }).join("") +
+      (r.warns || []).map(function (e) { return '<div class="msg warn">' + esc(e) + "</div>"; }).join("");
+    if (!r.parts) { clearOut(); return; }
+
+    // stats
+    var stats = [
+      [r.rows * r.cols, "boxes (" + r.rows + " × " + r.cols + ")"],
+      [fmt(r.upLen), "upright length"],
+      [fmt(r.spacer) + " · " + dec(r.spacer, 3), "spacer between " + Ns + (r.spacerAuto ? "" : " (measured)")],
+      r.topDown ? [fmt(r.topBlock) + " · " + dec(r.topBlock, 3), "top block (upright end to top " + N + ")"] : [fmt(r.base), "base block (floor to bottom " + N + ")"],
+      [fmt(r.width) + " W", "× " + fmt(r.depth) + " D × " + fmt(r.upLen) + " H"],
+      ["≈ " + Math.round(r.weight) + " lb", "empty rack weight"]
+    ];
+    if (r.rowsFit != null) stats.push([r.rowsFit, "rows fit under " + fmt(r.maxH)]);
+    document.getElementById("stats").innerHTML = stats.map(function (s) {
+      return '<div class="stat"><b>' + esc(s[0]) + "</b><span>" + esc(s[1]) + "</span></div>";
+    }).join("");
+
+    // header for the printed cut sheet
+    var lum = function (id) { return document.getElementById(id).value.replace("x", "×"); };
+    var spec = [
+      ["Boxes", r.rows * r.cols + " (" + r.rows + " rows × " + r.cols + " cols)"],
+      ["Box (top W × D × H)", fmt(r.boxW) + " × " + fmt(r.boxD) + " × " + fmt(r.boxH)],
+      ["Box bottom width", fmt(r.boxWb) + (r.ply ? " · on plywood shelf" : r.hung ? " · hung by rim" : " · sits on runners")],
+      ["Rack (W × D × H)", fmt(r.width) + " × " + fmt(r.depth) + " × " + fmt(r.upLen)],
+      ["Spacer", fmt(r.spacer) + " (" + dec(r.spacer, 3) + ")"],
+      r.topDown ? ["Top block", fmt(r.topBlock) + " (" + dec(r.topBlock, 3) + ")"] : ["Base block", fmt(r.base)],
+      ["Build", r.topDown ? "top down, spacer above " + N : "bottom up, spacer below " + N],
+      ["Bay (upright to upright)", fmt(r.bay)],
+      ["Headroom / side play", fmt(r.effTop) + " / " + fmt(r.clearSide)],
+      ["Uprights / " + Ns + " / ties", lum("upS") + " / " + (r.ply ? plyName(r.plySheets ? r.plySheets.t : 0) + " ply" : lum("ruS")) + " / " + lum("tiS")],
+      ["Weight (empty)", "≈ " + Math.round(r.weight) + " lb"],
+      ["Printed", new Date().toLocaleDateString()]
+    ];
+    document.getElementById("printHead").innerHTML = '<h1 style="font-size:15pt;margin:0">Box rack cut sheet</h1><div class="spec">' +
+      spec.map(function (s) { return "<div><span>" + esc(s[0]) + "</span><b>" + esc(s[1]) + "</b></div>"; }).join("") + "</div>";
+
+    drawFront(r);
+
+    // shopping list
+    var shop = '<thead><tr><th>Lumber</th><th class="num">Boards</th><th>Length</th><th class="num">Waste</th></tr></thead><tbody>';
+    var anyPack = false;
+    Object.keys(r.packs).forEach(function (s) {
+      var p = r.packs[s]; if (!p) return; anyPack = true;
+      var byL = {};
+      p.boards.forEach(function (b) {
+        var g = byL[b.L] = byL[b.L] || { n: 0, used: 0 };
+        g.n++; b.cuts.forEach(function (c) { g.used += c.len; });
+      });
+      Object.keys(byL).sort(function (a, b) { return b - a; }).forEach(function (L) {
+        var g = byL[L], waste = Math.round((1 - g.used / (g.n * L)) * 100);
+        shop += "<tr><td>" + s.replace("x", "×") + "</td><td class=\"num\">" + g.n + "</td><td>" + (L / 12) + " ft</td><td class=\"num\">" + waste + "%</td></tr>";
+      });
+    });
+    if (r.plySheets) {
+      var ps = r.plySheets, pp = r.parts[1];
+      var pWaste = Math.round((1 - pp.qty * pp.w * pp.len / (ps.n * 48 * 96)) * 100);
+      shop += "<tr><td>" + plyName(ps.t) + " plywood</td><td class=\"num\">" + ps.n + "</td><td>4×8 sheet</td><td class=\"num\">" + pWaste + "%</td></tr>";
+      anyPack = true;
+    }
+    shop += "</tbody>";
+    document.getElementById("shop").innerHTML = anyPack ? shop : "";
+    document.getElementById("hw").textContent = r.ply
+      ? "Hardware: about " + r.screws + " screws (a pocket screw at each shelf corner into the uprights, plus 2 wherever a tie crosses an upright), plus wood glue. Many stores will rip plywood to width for you, which makes it easier to haul."
+      : "Hardware: about " + r.screws + " screws (2 pocket screws at each runner end, plus 2 wherever a tie crosses an upright), plus wood glue. Buy an extra board or two of runner stock in case some are warped.";
+
+    // cut list
+    var cuts = '<thead><tr><th>Part</th><th>Stock</th><th class="num">Qty</th><th class="num">Length</th><th>Notes</th></tr></thead><tbody>';
+    r.parts.forEach(function (p) {
+      var stockName = p.stock === "ply" ? plyName(r.plySheets ? r.plySheets.t : 0) + " ply" : p.stock.replace("x", "×");
+      var lenTxt = p.stock === "ply" ? fmt(p.w) + " × " + fmt(p.len)
+        : fmt(p.len) + (p.len >= 48 ? ' <span class="muted">(' + fmtFt(p.len) + ")</span>" : "");
+      cuts += "<tr><td>" + esc(p.name) + "</td><td>" + stockName + '</td><td class="num">' + p.qty + '</td><td class="num">' + lenTxt +
+        "</td><td class=\"muted\">" + esc(p.note) + "</td></tr>";
+    });
+    cuts += '<tr><td>Spacer blocks</td><td>scrap</td><td class="num">2</td><td class="num">' + fmt(r.spacer) +
+      '</td><td class="muted">one for the front upright, one for the back</td></tr>';
+    if (r.topDown)
+      cuts += '<tr><td>Top block</td><td>scrap</td><td class="num">2</td><td class="num">' + fmt(r.topBlock) +
+        '</td><td class="muted">from the upright\'s top end to the top face of the top ' + N + '. Square the upright ends first.</td></tr>';
+    else
+      cuts += '<tr><td>Base block</td><td>scrap</td><td class="num">1–2</td><td class="num">' + fmt(r.base) +
+        '</td><td class="muted">sets the bottom ' + N + '\'s underside</td></tr>';
+    document.getElementById("cuts").innerHTML = cuts + "</tbody>";
+
+    // diagrams
+    var dHtml = "";
+    Object.keys(r.packs).forEach(function (s) {
+      var p = r.packs[s]; if (!p) return;
+      // group identical patterns
+      var pats = {};
+      p.boards.forEach(function (b) {
+        var key = b.L + "#" + b.cuts.map(function (c) { return c.label + "@" + c.len.toFixed(4); }).join("|");
+        (pats[key] = pats[key] || { b: b, n: 0 }).n++;
+      });
+      dHtml += '<h3 style="font-size:.92rem;margin:12px 0 4px">' + s.replace("x", "×") + "</h3>";
+      Object.keys(pats).forEach(function (k) {
+        var b = pats[k].b, n = pats[k].n;
+        var used = 0; b.cuts.forEach(function (c) { used += c.len; });
+        var off = b.L - used - r.kerf * (b.cuts.length - 1);
+        var segs = b.cuts.map(function (c) {
+          return '<div class="seg ' + c.cls + '" style="flex:0 0 ' + (c.len / b.L * 100) + '%" title="' + esc(c.label) + " " + fmt(c.len) + '">' + fmt(c.len) + "</div>";
+        }).join("");
+        dHtml += '<div class="board"><div class="lbl"><b>×' + n + "</b> " + (b.L / 12) + " ft board, " + b.cuts.length + " cut" + (b.cuts.length > 1 ? "s" : "") +
+          ' <span class="muted">· offcut ' + fmt(Math.max(off, 0)) + "</span></div><div class=\"bar\">" + segs + "</div></div>";
+      });
+    });
+    if (r.plySheets) dHtml += plyDiagram(r);
+    document.getElementById("diagrams").innerHTML = dHtml;
+
+    // heights
+    var h = '<thead><tr><th>Row</th><th class="num">' + Ncap + ' underside</th><th class="num">' + Ncap + ' top</th><th class="num">Top end to ' + N + ' top</th><th class="num">Box top</th></tr></thead><tbody>';
+    h += '<tr><td>Upright top</td><td></td><td class="num">' + fmt(r.upLen) + '</td><td class="num">0″</td><td></td></tr>';
+    if (r.ties.front || r.ties.backTop) h += '<tr><td>Top tie</td><td class="num">' + fmt(r.tieUnder) + '</td><td class="num">' + fmt(r.tieUnder + r.tiW) + "</td><td></td><td></td></tr>";
+    for (var i = r.rowsData.length - 1; i >= 0; i--) {
+      var d = r.rowsData[i];
+      h += "<tr><td>" + d.n + '</td><td class="num">' + fmt(d.under) + ' <span class="muted">' + dec(d.under, 2) + '</span></td><td class="num">' + fmt(d.top) +
+        ' <span class="muted">' + dec(d.top, 2) + '</span></td><td class="num">' + fmt(r.upLen - d.top) + ' <span class="muted">' + dec(r.upLen - d.top, 2) +
+        '</span></td><td class="num">' + fmt(d.boxTop) + "</td></tr>";
+    }
+    document.getElementById("heights").innerHTML = h + "</tbody>";
+
+    saveHash();
+    postHeight();
+  }
+
+  function plyName(t) {
+    return { "0.46875": "15/32″", "0.59375": "19/32″", "0.71875": "23/32″" }[String(t)] || fmt(t);
+  }
+
+  // one 4×8 sheet drawn to scale, long side horizontal
+  function plyDiagram(r) {
+    var ps = r.plySheets, SW = 96, SH = 48;
+    var minSide = Math.min(ps.layout[0].w, ps.layout[0].h), fs = Math.min(2.4, minSide / 6);
+    var s = '<svg viewBox="-1 -1 98 50" style="max-width:560px" role="img" aria-label="Plywood sheet layout">';
+    s += '<rect x="0" y="0" width="' + SW + '" height="' + SH + '" fill="var(--waste)" stroke="var(--line)" stroke-width="0.3"/>';
+    ps.layout.forEach(function (p) {
+      // layout is in sheet coordinates (x across 48, y along 96); rotate so 96 runs horizontally
+      var x = p.y, y = p.x, w = p.h, h = p.w;
+      s += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="var(--runner)" stroke="var(--panel)" stroke-width="0.4"/>';
+      s += '<text x="' + (x + w / 2) + '" y="' + (y + h / 2 + fs / 3) + '" font-size="' + fs + '" fill="#fff" text-anchor="middle">' + esc(fmt(p.w) + " × " + fmt(p.h)) + "</text>";
+    });
+    s += "</svg>";
+    var note = ps.per + " panels per sheet";
+    if (ps.n > 1 && ps.last < ps.per) note += "; the last sheet only needs " + ps.last;
+    else if (ps.n === 1 && ps.last < ps.per) note = "only " + ps.last + " of " + ps.per + " panel spots used";
+    return '<h3 style="font-size:.92rem;margin:12px 0 4px">' + plyName(ps.t) + ' plywood</h3><div class="board"><div class="lbl"><b>×' + ps.n +
+      "</b> 4×8 sheet" + (ps.n > 1 ? "s" : "") + ' <span class="muted">· ' + note + "</span></div>" + s + "</div>";
+  }
+
+  function clearOut() {
+    ["stats", "draw", "shop", "cuts", "diagrams", "heights"].forEach(function (id) { document.getElementById(id).innerHTML = ""; });
+    document.getElementById("hw").textContent = "";
+    postHeight();
+  }
+
+  var view = "front";
+  function drawFront(r) {
+    var back = view === "back";
+    document.getElementById("viewTitle").textContent = back ? "Back view" : "Front view";
+    var W = r.width, H = r.upLen, pad = Math.max(W, H) * 0.06;
+    var fs = Math.max(W, H) * 0.04;
+    var Y = function (y) { return H - y; };
+    var s = '<svg viewBox="' + (-pad) + " " + (-pad) + " " + (W + pad * 2.2 + fs * 1.5) + " " + (H + pad * 2.2 + fs * 1.5) + '" role="img" aria-label="' + (back ? "Back" : "Front") + ' view of the rack">';
+    s += '<line x1="' + (-pad) + '" y1="' + H + '" x2="' + (W + pad) + '" y2="' + H + '" stroke="var(--muted)" stroke-width="' + (fs * 0.08) + '"/>';
+    // seen from the back, the rack is mirrored left to right
+    s += back ? '<g transform="translate(' + W + ' 0) scale(-1 1)">' : "<g>";
+    var empty = {};
+    if (r.rows * r.cols > 6) {
+      empty[(r.rows - 1) + ":" + (r.cols - 1)] = 1;
+      empty[Math.floor(r.rows / 2) + ":0"] = 1;
+      empty["1:" + Math.min(1, r.cols - 1)] = 1;
+    }
+    var sw = fs * 0.05;
+    // boxes + runners
+    for (var c = 0; c < r.cols; c++) {
+      var bx = (c + 1) * r.upThin + c * r.bay; // left edge of bay
+      r.rowsData.forEach(function (d, i) {
+        if (r.ply) s += '<rect x="' + bx + '" y="' + Y(d.top) + '" width="' + r.bay + '" height="' + r.ruT + '" fill="var(--runner)"/>';
+        else {
+          s += '<rect x="' + bx + '" y="' + Y(d.top) + '" width="' + r.ruW + '" height="' + r.ruT + '" fill="var(--runner)"/>';
+          s += '<rect x="' + (bx + r.bay - r.ruW) + '" y="' + Y(d.top) + '" width="' + r.ruW + '" height="' + r.ruT + '" fill="var(--runner)"/>';
+        }
+        if (!empty[i + ":" + c]) {
+          var cx = bx + r.bay / 2, st = '" fill="var(--box)" stroke="var(--box-edge)" stroke-width="' + sw + '"/>';
+          if (!r.hung) {
+            s += '<polygon points="' + [cx - r.boxWb / 2, Y(d.boxBot), cx + r.boxWb / 2, Y(d.boxBot), cx + r.boxW / 2, Y(d.boxTop), cx - r.boxW / 2, Y(d.boxTop)].join(" ") + st;
+          } else {
+            s += '<polygon points="' + [cx - r.boxWb / 2, Y(d.boxBot), cx + r.boxWb / 2, Y(d.boxBot), cx + r.bodyW / 2, Y(d.top), cx - r.bodyW / 2, Y(d.top)].join(" ") + st;
+            s += '<rect x="' + (cx - r.boxW / 2) + '" y="' + Y(d.boxTop) + '" width="' + r.boxW + '" height="' + r.rimDrop + st;
+          }
+        }
+      });
+    }
+    // uprights
+    for (var u = 0; u <= r.cols; u++) {
+      var ux = u * (r.upThin + r.bay);
+      s += '<rect x="' + ux + '" y="0" width="' + r.upThin + '" height="' + H + '" fill="var(--upright)"/>';
+    }
+    s += "</g>";
+    var tieStyle = '" fill="var(--tie)" stroke="var(--runner)" stroke-width="' + sw + '"/>';
+    if (!back) {
+      if (r.ties.front) s += '<rect x="0" y="' + Y(r.tieUnder + r.tiW) + '" width="' + W + '" height="' + r.tiW + tieStyle;
+    } else {
+      // diagonal: a tiW-wide band from the bottom-left corner to the top-right, clipped to the rack outline
+      if (r.ties.diag) {
+        var L = Math.sqrt(W * W + H * H), ux2 = W / L, uy2 = H / L, nx = -uy2 * r.tiW / 2, ny = ux2 * r.tiW / 2, ext = r.tiW * 2;
+        var x0 = -ux2 * ext, y0 = -uy2 * ext, x1 = W + ux2 * ext, y1 = H + uy2 * ext;
+        var pts = [x0 + nx, y0 + ny, x1 + nx, y1 + ny, x1 - nx, y1 - ny, x0 - nx, y0 - ny];
+        s += '<clipPath id="rackclip"><rect x="0" y="0" width="' + W + '" height="' + H + '"/></clipPath>';
+        s += '<polygon clip-path="url(#rackclip)" points="' + pts.map(function (v, i) { return i % 2 ? Y(v) : v; }).join(" ") + tieStyle;
+      }
+      if (r.ties.backTop) s += '<rect x="0" y="' + Y(r.tieUnder + r.tiW) + '" width="' + W + '" height="' + r.tiW + tieStyle;
+      if (r.ties.backBot) s += '<rect x="0" y="' + Y(r.tiW) + '" width="' + W + '" height="' + r.tiW + tieStyle;
+      if (!r.ties.diag && !r.ties.backTop && !r.ties.backBot)
+        s += '<text x="' + W / 2 + '" y="' + H / 2 + '" font-size="' + fs + '" fill="var(--ink)" text-anchor="middle">no back bracing selected</text>';
+    }
+    // dimensions
+    var dy = H + pad * 1.2;
+    s += dimLine(0, dy, W, dy, fmt(W), fs, false);
+    var dx = W + pad * 1.2;
+    s += dimLine(dx, 0, dx, H, fmt(H), fs, true);
+    s += "</svg>";
+    document.getElementById("draw").innerHTML = s;
+  }
+  function dimLine(x1, y1, x2, y2, label, fs, vert) {
+    var st = 'stroke="var(--muted)" stroke-width="' + (fs * 0.07) + '"';
+    var t = fs * 0.4, o = "";
+    o += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" ' + st + "/>";
+    if (vert) {
+      o += '<line x1="' + (x1 - t) + '" y1="' + y1 + '" x2="' + (x1 + t) + '" y2="' + y1 + '" ' + st + "/>";
+      o += '<line x1="' + (x2 - t) + '" y1="' + y2 + '" x2="' + (x2 + t) + '" y2="' + y2 + '" ' + st + "/>";
+      var cy = (y1 + y2) / 2;
+      o += '<text x="' + (x1 + fs * 0.5) + '" y="' + cy + '" font-size="' + fs + '" fill="var(--ink)" transform="rotate(90 ' + (x1 + fs * 0.5) + " " + cy + ')" text-anchor="middle">' + esc(label) + "</text>";
+    } else {
+      o += '<line x1="' + x1 + '" y1="' + (y1 - t) + '" x2="' + x1 + '" y2="' + (y1 + t) + '" ' + st + "/>";
+      o += '<line x1="' + x2 + '" y1="' + (y2 - t) + '" x2="' + x2 + '" y2="' + (y2 + t) + '" ' + st + "/>";
+      o += '<text x="' + ((x1 + x2) / 2) + '" y="' + (y1 + fs * 1.2) + '" font-size="' + fs + '" fill="var(--ink)" text-anchor="middle">' + esc(label) + "</text>";
+    }
+    return o;
+  }
+
+  // ---------- embedding: report height to a parent page ----------
+  var lastH = 0;
+  function postHeight() {
+    if (window.parent === window) return;
+    // body, not documentElement: the root's scrollHeight never drops below the
+    // iframe's current height, so the frame could grow but never shrink.
+    var h = Math.ceil(document.body.getBoundingClientRect().height);
+    if (h === lastH) return; lastH = h;
+    try { window.parent.postMessage({ type: "shelfcalc:height", height: h }, "*"); } catch (e) {}
+  }
+  if (window.ResizeObserver) new ResizeObserver(postHeight).observe(document.body);
+  document.addEventListener("toggle", postHeight, true);
+
+  // ---------- wire up ----------
+  var t;
+  // Enter in a field would otherwise submit the form and reload the page
+  form.addEventListener("submit", function (e) { e.preventDefault(); });
+  form.addEventListener("input", function () { clearTimeout(t); t = setTimeout(render, 80); });
+  form.addEventListener("change", render);
+  // print: open the runner-heights section for the sheet, restore afterwards
+  var det = document.querySelector(".heights-card details"), wasOpen = false;
+  window.addEventListener("beforeprint", function () { wasOpen = det.open; det.open = true; });
+  window.addEventListener("afterprint", function () { det.open = wasOpen; });
+  document.querySelector(".toggle").addEventListener("click", function (e) {
+    var v = e.target.dataset && e.target.dataset.view; if (!v) return;
+    view = v;
+    this.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.view === v)); });
+    render();
+  });
+  document.getElementById("printBtn").addEventListener("click", function () { render(); window.print(); });
+
+  document.getElementById("reset").addEventListener("click", function () {
+    FIELDS.forEach(function (id) { writeField(id, DEFAULTS[id]); });
+    stockBox.querySelectorAll("input").forEach(function (i) { i.checked = STOCK_DEFAULT.indexOf(+i.dataset.stock) >= 0; });
+    override = {};
+    render();
+  });
+  document.getElementById("copyLink").addEventListener("click", function () {
+    var btn = this, h = hashString();
+    var url = location.href.split("#")[0] + (h ? "#" + h : "");
+    function done(ok) { btn.textContent = ok ? "Link copied" : "Copy failed"; setTimeout(function () { btn.textContent = "Copy link to this build"; }, 1600); }
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(function () { done(true); }, function () { done(false); });
+    else done(false);
+  });
+  window.addEventListener("hashchange", function () { loadHash(); render(); });
+
+  loadHash();
+  render();
+})();
+</script>
+</body>
+</html>
